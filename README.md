@@ -15,7 +15,6 @@ This custom OpenTelemetry Collector includes a filter remap processor that group
 
 - Docker (for containerized deployment)
 - Docker Compose (recommended for quick start)
-- Kubernetes 1.19+ (optional, for K8s deployment)
 
 ### Option 1: Docker Compose (Recommended)
 
@@ -76,20 +75,6 @@ After running `docker-compose up --build`, access:
 - **Collector Health**: http://localhost:13133 (health check)
 - **Collector zPages**: http://localhost:55679/debug/tracez (debugging)
 - **Collector Metrics**: http://localhost:8888/metrics (Prometheus metrics)
-
-### Kubernetes Deployment
-
-1. **Using kubectl:**
-   ```bash
-   kubectl apply -f k8s/deployment.yaml
-   ```
-
-2. **Using Helm:**
-   ```bash
-   helm install otel-custom ./helm/otel-trace-hierarchy \
-     --namespace otel-custom \
-     --create-namespace
-   ```
 
 ## Customizing the Collector
 
