@@ -86,12 +86,6 @@ EXPOSE 4318
 EXPOSE 8888
 # Health check extension
 EXPOSE 13133
-# zPages extension (debugging)
-EXPOSE 55679
-# Jaeger Thrift HTTP receiver
-EXPOSE 14268
-# Jaeger gRPC receiver
-EXPOSE 14250
 
 # Health check to ensure the collector is running
 # Requires health_check extension to be enabled in config.yaml

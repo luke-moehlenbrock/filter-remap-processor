@@ -1,12 +1,12 @@
 # OpenTelemetry Collector with Filter Remap Processor
 
-This custom OpenTelemetry Collector includes a filter remap processor that groups spans by trace ID, applies filtering rules, and maintains parent-child relationships even when parent spans are dropped.
+This project contains a custom OpenTelemetry Collector Processor that drops spans based on filtering rules and remaps the trace hierarchy upon forwarding to prevent orphaned spans. It does this by buffering entire traces and retaining the context for dropped spans. After a set time without receiving any new spans for a trace, the trace is forwarded to the next consumer, using the context from dropped spans to remap the parent ID of retained spans to their next retained ancestor.
 
 ## Features
 
 - **Trace Buffering**: Groups spans by trace ID and buffers them in memory
 - **OTTL-based Filtering**: Apply complex filtering rules using OpenTelemetry Transformation Language
-- **Hierarchy Preservation**: Maintains span relationships when filtering
+- **Hierarchy Preservation**: Maintains span relationships when filtering, no orphaned spans
 - **Production Ready**: Includes health checks, metrics, and profiling endpoints
 
 ## Quick Start
@@ -21,7 +21,7 @@ This custom OpenTelemetry Collector includes a filter remap processor that group
 The easiest way to get started - everything is automatically built and configured:
 
 ```bash
-# Build and start all services (collector, Jaeger, Prometheus, Grafana, trace generator)
+# Build and start all services (collector, Prometheus, Grafana)
 docker-compose up --build
 
 # Stop all services
@@ -39,7 +39,7 @@ docker build -t otelcol-custom:latest .
 # Run the collector
 docker run --rm \
   -v $(pwd)/examples/config.yaml:/etc/otelcol/config.yaml:ro \
-  -p 4317:4317 -p 4318:4318 -p 8888:8888 -p 13133:13133 -p 55679:55679 \
+  -p 4317:4317 -p 4318:4318 -p 8888:8888 -p 13133:13133 \
   otelcol-custom:latest
 ```
 
@@ -69,11 +69,8 @@ docker build \
 
 After running `docker-compose up --build`, access:
 
-- **Jaeger UI**: http://localhost:16686 (view traces)
 - **Grafana**: http://localhost:3000 (dashboards - admin/admin)
-- **Prometheus**: http://localhost:9090 (metrics)
 - **Collector Health**: http://localhost:13133 (health check)
-- **Collector zPages**: http://localhost:55679/debug/tracez (debugging)
 - **Collector Metrics**: http://localhost:8888/metrics (Prometheus metrics)
 
 ## Customizing the Collector
@@ -132,15 +129,13 @@ processors:
     num_traces: 10000
     
     # Drop root spans if they match the filter
+    # If this is true, child spans will be remapped to root
     drop_root_spans: true
     
     # OTTL filtering conditions
     traces:
       span:
-        - 'name == "/health"'
-        - 'attributes["http.route"] == "/metrics"'
-      spanevent:
-        - 'attributes["log.level"] == "DEBUG"'
+        - 'attributes["openinference.span.kind"] == nil'
 ```
 
 ### Configuration Options (reference)
@@ -200,7 +195,8 @@ processors:
   - Note: The eviction callback is synchronous; it never blocks the LRU. The `forward` option creates async work; use with care.
 
 - `traces.span` / `traces.spanevent`:
-  - Arrays of OTTL boolean expressions. When an expression evaluates to true for a span (or span event), that span is considered “sampled/dropped” for remapping purposes.
+  - Arrays of OTTL boolean expressions. When an expression evaluates to true for a span, that span is considered “sampled/dropped” for remapping purposes.
+  - Span events matching a spanevent condition will be dropped.
   - See examples below for common patterns.
 
 ### OTTL Filter Examples
@@ -224,7 +220,7 @@ processors:
 
 ## Sending Traces to Arize
 
-This collector can be configured to send traces to [Arize AI](https://arize.com/) for AI/ML observability. Arize provides powerful tools for monitoring and debugging LLM applications, including the OpenInference specification for tracing.
+This collector can be configured to send traces to [Arize AI](https://arize.com/) for AI observability. Arize provides powerful tools for developing, monitoring, and debugging LLM applications, including the OpenInference semantic conventions for GenAI tracing.
 
 ### Setting Up Environment Variables
 
@@ -273,7 +269,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [transform, filter_remap]
+      processors: [filter_remap]
       exporters: [otlp]
 ```
 
@@ -292,7 +288,8 @@ processors:
   transform:
     error_mode: ignore
     trace_statements:
-      # Set project name for Arize
+      # Set project name for Arize, not necessary when using the arize.otel register function
+      # Can be useful if you want to send traces to multiple Arize projects with multiple pipelines.
       - set(resource.attributes["openinference.project.name"], "My LLM Project")
 ```
 
@@ -339,13 +336,12 @@ docker-compose up
    INFO    extensions/extensions.go:31     Starting extensions...
    ```
 
-2. **Send test traces** to the collector (see `arize_test/create_synthetic_trace.py`)
+2. **Send test traces** to the collector
 
 3. **View traces in Arize:**
    - Navigate to https://app.arize.com/
    - Select your project
    - Go to the **Tracing** tab
-   - Filter by your project name
 
 ### Example Pipeline Configurations
 
@@ -363,7 +359,7 @@ pipelines:
 pipelines:
   traces/filtered:
     receivers: [otlp]
-    processors: [filter_remap, transform]
+    processors: [filter_remap]
     exporters: [otlp]
 ```
 
@@ -377,7 +373,7 @@ pipelines:
   
   traces/filtered:
     receivers: [otlp]
-    processors: [filter_remap, transform]
+    processors: [filter_remap]
     exporters: [otlp]
 ```
 
@@ -414,8 +410,6 @@ The processor exposes the following metrics:
 ### Health Checks
 
 - Health endpoint: http://localhost:13133/health
-- zPages: http://localhost:55679
-- pprof: http://localhost:1777/debug/pprof/
 
 ## Performance Tuning
 

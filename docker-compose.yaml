@@ -15,8 +15,6 @@ services:
       - "4318:4318"   # OTLP HTTP
       - "8888:8888"   # Prometheus metrics
       - "13133:13133" # Health check
-      - "55679:55679" # zPages
-      - "1777:1777" # pprof
     env_file:
       - .env
     environment:
