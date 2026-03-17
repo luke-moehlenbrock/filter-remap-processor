@@ -1,6 +1,7 @@
 package filterremapprocessor
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -9,6 +10,7 @@ import (
 )
 
 type traceData struct {
+	Ctx                  context.Context
 	ArrivalTime          time.Time
 	LastSpanArrivalNanos atomic.Int64
 	HierarchyMap         hierarchyMap

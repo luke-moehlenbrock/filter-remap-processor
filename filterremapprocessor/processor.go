@@ -120,7 +120,7 @@ func newFilterRemapProcessor(ctx context.Context, set processor.Settings, nextCo
 func (frp *filterRemapProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {
 	resourceSpans := td.ResourceSpans()
 	for i := 0; i < resourceSpans.Len(); i++ {
-		frp.processTraces(resourceSpans.At(i))
+		frp.processTraces(ctx, resourceSpans.At(i))
 	}
 	return nil
 }
@@ -185,7 +185,7 @@ func (frp *filterRemapProcessor) filterSpansByTraceId(resourceSpans ptrace.Resou
 	return traceIdToSpans, errors
 }
 
-func (frp *filterRemapProcessor) processTraces(resourceSpans ptrace.ResourceSpans) {
+func (frp *filterRemapProcessor) processTraces(ctx context.Context, resourceSpans ptrace.ResourceSpans) {
 	currTime := time.Now()
 
 	// Group spans per their traceId to minimize contention on traceIdToTrace
@@ -202,6 +202,7 @@ func (frp *filterRemapProcessor) processTraces(resourceSpans ptrace.ResourceSpan
 		tData, loaded := frp.idToTrace.Get(id)
 		if !loaded {
 			td := &traceData{
+				Ctx:                  ctx,
 				ArrivalTime:          currTime,
 				LastSpanArrivalNanos: atomic.Int64{},
 				HierarchyMap: hierarchyMap{
@@ -379,7 +380,7 @@ func (frp *filterRemapProcessor) forwardTrace(trace *traceData) {
 	startTime := time.Now()
 	remappedTrace := buildRemappedTrace(allSpansRetained)
 	frp.telemetry.ProcessorFilterRemapTraceRemapLatency.Record(frp.ctx, time.Since(startTime).Microseconds())
-	frp.nextConsumer.ConsumeTraces(frp.ctx, remappedTrace)
+	frp.nextConsumer.ConsumeTraces(trace.Ctx, remappedTrace)
 	frp.telemetry.ProcessorFilterRemapForwardTraceLatency.Record(frp.ctx, time.Since(currTime).Milliseconds())
 }
 
