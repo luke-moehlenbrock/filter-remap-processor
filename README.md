@@ -1,3 +1,8 @@
+> [!IMPORTANT]
+> This project is now actively maintained at **[Arize-AI/filter-remap-processor](https://github.com/Arize-ai/filter-remap-processor)**.
+> 
+> This repository remains available as the original personal home of the project, but all new development, bug fixes, and releases will happen in the Arize repository.
+
 # OpenTelemetry Collector with Filter Remap Processor
 
 This project contains a custom OpenTelemetry Collector Processor that drops spans based on filtering rules and remaps the trace hierarchy upon forwarding to prevent orphaned spans. It does this by buffering entire traces and retaining the context for dropped spans. After a set time without receiving any new spans for a trace, the trace is forwarded to the next consumer, using the context from dropped spans to remap the parent ID of retained spans to their next retained ancestor.
